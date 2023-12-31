@@ -1,13 +1,18 @@
 package mgorm
 
 import (
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 	"sync"
 )
 
 type Connection struct {
-	db    *gorm.DB
-	mutex sync.Mutex
+	db     *gorm.DB
+	mutex  sync.Mutex
+	config Config
 }
 
 // Connect 连接数据库
@@ -21,8 +26,9 @@ func (c *Connection) Connect() error {
 	return err
 }
 
+// rawConnect 连接数据库
 func (c *Connection) rawConnect() (*gorm.DB, error) {
-	db, err := gorm.Open(NewDialector(conn.conf), &gorm.Config{})
+	db, err := gorm.Open(Open(c.config), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -53,4 +59,18 @@ func (c *Connection) GetDB() (*gorm.DB, error) {
 		return c.rawConnect()
 	}
 	return c.db, nil
+}
+
+func Open(conf Config) gorm.Dialector {
+	switch conf.DriverName {
+	case DriverNameMySql:
+		return mysql.Open(conf.Dns)
+	case DriverNamePostgres:
+		return postgres.Open(conf.Dns)
+	case DriverNameSqlite3:
+		return sqlite.Open(conf.Dns)
+	case DriverNameSqlServer:
+		return sqlserver.Open(conf.Dns)
+	}
+	return nil
 }
