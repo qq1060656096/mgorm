@@ -9,6 +9,12 @@ import (
 	"sync"
 )
 
+func NewConnection(config Config) *Connection {
+	return &Connection{
+		config: config,
+	}
+}
+
 type Connection struct {
 	db     *gorm.DB
 	mutex  sync.Mutex
