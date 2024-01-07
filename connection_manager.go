@@ -1,7 +1,6 @@
 package mgorm
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -31,7 +30,6 @@ func (m *ConnectionManager) Delete(name string) {
 // Get 获取连接
 func (m *ConnectionManager) Get(name string) *Connection {
 	if c, ok := m.conMap.Load(name); ok {
-		fmt.Println(">>-----", ok, c.(*Connection))
 		return c.(*Connection)
 	}
 	return nil
