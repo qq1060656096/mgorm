@@ -27,6 +27,12 @@ go test -count=1 -v -cover .
 
 # 运行所有单元测试，并查看测试覆盖率，竞态检测
 go test -count=1 -v -cover -race .
+
+# 并发测试正确
+go test -count=1 -v -race -run=TestConcurrent_DbInsertOk . 
+# 并发测试错误
+go test -count=1 -v -race -run=TestConcurrent_DbSelectErr . 
+
 ```
 
 ### 单元测试 sql
