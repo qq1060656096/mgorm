@@ -78,13 +78,19 @@ func closer(ctx context.Context, db *gorm.DB) error {
 	return sqlDB.Close()
 }
 
+// Group 是单一组管理（key => redis client）
+type Group = registry.Group[DBConfig, *gorm.DB]
+
+// Manager 是多组管理
+type Manager = registry.Manager[DBConfig, *gorm.DB]
+
 // NewManager 创建一个新的数据库连接管理器。
 // 返回的 Manager 实例用于管理单个数据库连接的生命周期，
 // 包括连接的创建、获取和关闭。
 //
 // 返回：
 //   - registry.Manager[DBConfig, *gorm.DB]: 数据库连接管理器实例
-func NewManager() registry.Manager[DBConfig, *gorm.DB] {
+func NewManager() Manager {
 	return registry.New[DBConfig, *gorm.DB](
 		opener,
 		closer,
@@ -97,7 +103,7 @@ func NewManager() registry.Manager[DBConfig, *gorm.DB] {
 //
 // 返回：
 //   - registry.Group[DBConfig, *gorm.DB]: 数据库连接分组管理器实例
-func New() registry.Group[DBConfig, *gorm.DB] {
+func New() Group {
 	return registry.NewGroup[DBConfig, *gorm.DB](
 		opener,
 		closer,

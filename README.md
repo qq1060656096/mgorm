@@ -2,6 +2,8 @@
 
 基于 [GORM](https://gorm.io/) 的数据库连接管理库，提供连接池配置、多数据库实例管理等功能。
 
+本库基于 [bizutil/registry](https://github.com/qq1060656096/bizutil/tree/main/registry) 包实现资源管理功能。
+
 ## 功能特性
 
 - ✨ 基于 GORM 的数据库连接管理
@@ -365,6 +367,68 @@ if mgorm.IsErrNoDialector(err) {
 }
 ```
 
+## 实现原理
+
+mgorm 基于 [bizutil/registry](https://github.com/qq1060656096/bizutil/tree/main/registry) 包实现，该包提供了通用的资源注册与管理功能。
+
+### 核心架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         mgorm                               │
+├─────────────────────────────────────────────────────────────┤
+│  New() -> registry.Group[DBConfig, *gorm.DB]                │
+│  NewManager() -> registry.Manager[DBConfig, *gorm.DB]       │
+├─────────────────────────────────────────────────────────────┤
+│                   bizutil/registry                          │
+│  ┌─────────────┐    ┌──────────────────────────────────┐    │
+│  │   Group     │    │            Manager               │    │
+│  │  (单组管理)  │    │  (多组管理，包含多个 Group)       │    │
+│  └─────────────┘    └──────────────────────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│                        GORM                                 │
+│                    (数据库 ORM)                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 关键函数
+
+mgorm 通过实现 `opener` 和 `closer` 函数，将数据库连接的生命周期管理委托给 registry：
+
+```go
+// opener - 创建数据库连接
+func opener(ctx context.Context, cfg DBConfig) (*gorm.DB, error) {
+    // 1. 验证配置
+    // 2. 使用 Dialector 打开连接
+    // 3. 设置连接池参数
+    // 4. Ping 验证连接可用
+    return db, nil
+}
+
+// closer - 关闭数据库连接
+func closer(ctx context.Context, db *gorm.DB) error {
+    // 安全关闭底层 SQL 连接
+    return sqlDB.Close()
+}
+
+// 创建单组管理器
+func New() registry.Group[DBConfig, *gorm.DB] {
+    return registry.NewGroup[DBConfig, *gorm.DB](opener, closer)
+}
+
+// 创建多组管理器
+func NewManager() registry.Manager[DBConfig, *gorm.DB] {
+    return registry.New[DBConfig, *gorm.DB](opener, closer)
+}
+```
+
+### registry 包特性
+
+- **惰性初始化**: 资源在首次 `Get()` 时才创建，而非注册时
+- **线程安全**: 内部使用互斥锁保证并发安全
+- **统一生命周期**: 通过 `Close()` 统一关闭所有资源
+- **泛型支持**: 使用 Go 泛型，支持任意配置类型和资源类型
+
 ## 许可证
 
-[MIT License](LICENSE)
+[Apache License](LICENSE)
