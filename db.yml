@@ -1,0 +1,23 @@
+public:
+  common:
+    name: "common"
+    dsn: ""
+    driver_type: ""
+    max_idle_conns: 0
+    max_open_conns: 0
+    max_lifetime: 0
+business:
+  test_data_1:
+    name: "test_data_1"
+    dsn: ""
+    driver_type: ""
+    max_idle_conns: 0
+    max_open_conns: 0
+    max_lifetime: 0
+  test_data_2:
+    name: "test_data_2"
+    dsn: ""
+    driver_type: ""
+    max_idle_conns: 0
+    max_open_conns: 0
+    max_lifetime: 0
