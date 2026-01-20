@@ -91,7 +91,7 @@ type Manager = registry.Manager[DBConfig, *gorm.DB]
 // 返回：
 //   - registry.Manager[DBConfig, *gorm.DB]: 数据库连接管理器实例
 func NewManager() Manager {
-	return registry.New[DBConfig, *gorm.DB](
+	return registry.NewManager[DBConfig, *gorm.DB](
 		opener,
 		closer,
 	)
@@ -104,7 +104,7 @@ func NewManager() Manager {
 // 返回：
 //   - registry.Group[DBConfig, *gorm.DB]: 数据库连接分组管理器实例
 func New() Group {
-	return registry.NewGroup[DBConfig, *gorm.DB](
+	return registry.New[DBConfig, *gorm.DB](
 		opener,
 		closer,
 	)
