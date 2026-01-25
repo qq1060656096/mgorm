@@ -417,3 +417,306 @@ func TestOpenDB_WithGormOperations(t *testing.T) {
 		t.Errorf("查询到的 Name = %q, 期望 %q", found.Name, "测试记录")
 	}
 }
+
+// TestDBConfig_AutoDsn 测试 AutoDsn 方法
+func TestDBConfig_AutoDsn(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   DBConfig
+		expected string
+	}{
+		{
+			name: "已有 DSN，直接返回",
+			config: DBConfig{
+				DSN: "existing_dsn_string",
+			},
+			expected: "existing_dsn_string",
+		},
+		{
+			name: "MySQL 驱动，完整配置",
+			config: DBConfig{
+				DriverType: "mysql",
+				Host:       "localhost",
+				Port:       3306,
+				User:       "root",
+				Password:   "password",
+				DBName:     "testdb",
+				Charset:    "utf8mb4",
+			},
+			expected: "root:password@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local",
+		},
+		{
+			name: "MySQL 驱动，使用默认字符集",
+			config: DBConfig{
+				DriverType: "mysql",
+				Host:       "127.0.0.1",
+				Port:       3306,
+				User:       "admin",
+				Password:   "secret",
+				DBName:     "mydb",
+			},
+			expected: "admin:secret@tcp(127.0.0.1:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
+		},
+		{
+			name: "PostgreSQL 驱动",
+			config: DBConfig{
+				DriverType: "postgres",
+				Host:       "localhost",
+				Port:       5432,
+				User:       "postgres",
+				Password:   "pgpass",
+				DBName:     "postgresdb",
+			},
+			expected: "host=localhost port=5432 user=postgres password=pgpass dbname=postgresdb sslmode=disable",
+		},
+		{
+			name: "SQLite 驱动，文件数据库",
+			config: DBConfig{
+				DriverType: "sqlite",
+				DBName:     "/path/to/database.db",
+			},
+			expected: "/path/to/database.db",
+		},
+		{
+			name: "SQLite 驱动，内存数据库",
+			config: DBConfig{
+				DriverType: "sqlite",
+				DBName:     ":memory:",
+			},
+			expected: ":memory:",
+		},
+		{
+			name: "SQL Server 驱动",
+			config: DBConfig{
+				DriverType: "sqlserver",
+				Host:       "localhost",
+				Port:       1433,
+				User:       "sa",
+				Password:   "mssqlpass",
+				DBName:     "mssql_db",
+			},
+			expected: "sqlserver://sa:mssqlpass@localhost:1433?database=mssql_db",
+		},
+		{
+			name: "未知驱动类型",
+			config: DBConfig{
+				DriverType: "unknown",
+				Host:       "localhost",
+				Port:       3306,
+				User:       "user",
+				Password:   "pass",
+				DBName:     "db",
+			},
+			expected: "",
+		},
+		{
+			name: "空驱动类型",
+			config: DBConfig{
+				DriverType: "",
+				Host:       "localhost",
+				Port:       3306,
+				User:       "user",
+				Password:   "pass",
+				DBName:     "db",
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.config.AutoDsn()
+			if result != tt.expected {
+				t.Errorf("AutoDsn() = %q, 期望 %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestDBConfig_AutoDsn_MyCharsetModification 测试 AutoDsn 方法是否会修改原始配置的字符集
+func TestDBConfig_AutoDsn_MyCharsetModification(t *testing.T) {
+	config := DBConfig{
+		DriverType: "mysql",
+		Host:       "localhost",
+		Port:       3306,
+		User:       "root",
+		Password:   "password",
+		DBName:     "testdb",
+		Charset:    "", // 故意留空
+	}
+
+	// 记录调用前的字符集
+	originalCharset := config.Charset
+
+	// 调用 AutoDsn
+	dsn := config.AutoDsn()
+
+	// 验证 DSN 包含默认字符集
+	expectedDsn := "root:password@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
+	if dsn != expectedDsn {
+		t.Errorf("AutoDsn() = %q, 期望 %q", dsn, expectedDsn)
+	}
+
+	// 验证原始配置的字符集已被修改为默认值
+	if config.Charset != "utf8mb4" {
+		t.Errorf("调用 AutoDsn 后 Charset = %q, 期望 %q", config.Charset, "utf8mb4")
+	}
+
+	// 验证字符集确实发生了变化
+	if config.Charset == originalCharset {
+		t.Error("调用 AutoDsn 后 Charset 应该被修改")
+	}
+}
+
+// TestDBConfig_AutoDsn_ExistingCharset 测试 AutoDsn 方法在已有字符集时的行为
+func TestDBConfig_AutoDsn_ExistingCharset(t *testing.T) {
+	config := DBConfig{
+		DriverType: "mysql",
+		Host:       "localhost",
+		Port:       3306,
+		User:       "root",
+		Password:   "password",
+		DBName:     "testdb",
+		Charset:    "latin1", // 自定义字符集
+	}
+
+	dsn := config.AutoDsn()
+	expectedDsn := "root:password@tcp(localhost:3306)/testdb?charset=latin1&parseTime=True&loc=Local"
+
+	if dsn != expectedDsn {
+		t.Errorf("AutoDsn() = %q, 期望 %q", dsn, expectedDsn)
+	}
+
+	// 验证字符集没有被修改
+	if config.Charset != "latin1" {
+		t.Errorf("Charset = %q, 期望保持为 latin1", config.Charset)
+	}
+}
+
+// TestDBConfig_AutoDsn_EdgeCases 测试 AutoDsn 方法的边界情况
+func TestDBConfig_AutoDsn_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   DBConfig
+		expected string
+	}{
+		{
+			name: "MySQL 配置缺少必要字段",
+			config: DBConfig{
+				DriverType: "mysql",
+				Host:       "", // 缺少 Host
+				Port:       3306,
+				User:       "root",
+				Password:   "password",
+				DBName:     "testdb",
+			},
+			expected: "root:password@tcp(:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local",
+		},
+		{
+			name: "MySQL 配置端口为零",
+			config: DBConfig{
+				DriverType: "mysql",
+				Host:       "localhost",
+				Port:       0, // 端口为零
+				User:       "root",
+				Password:   "password",
+				DBName:     "testdb",
+			},
+			expected: "root:password@tcp(localhost:0)/testdb?charset=utf8mb4&parseTime=True&loc=Local",
+		},
+		{
+			name: "PostgreSQL 配置缺少字段",
+			config: DBConfig{
+				DriverType: "postgres",
+				Host:       "", // 缺少 Host
+				Port:       5432,
+				User:       "postgres",
+				Password:   "password",
+				DBName:     "testdb",
+			},
+			expected: "host= port=5432 user=postgres password=password dbname=testdb sslmode=disable",
+		},
+		{
+			name: "SQLite 空数据库名",
+			config: DBConfig{
+				DriverType: "sqlite",
+				DBName:     "", // 空数据库名
+			},
+			expected: "", // 空字符串
+		},
+		{
+			name: "SQL Server 配置缺少字段",
+			config: DBConfig{
+				DriverType: "sqlserver",
+				Host:       "", // 缺少 Host
+				Port:       1433,
+				User:       "sa",
+				Password:   "password",
+				DBName:     "testdb",
+			},
+			expected: "sqlserver://sa:password@:1433?database=testdb",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.config.AutoDsn()
+			if result != tt.expected {
+				t.Errorf("AutoDsn() = %q, 期望 %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+// BenchmarkDBConfig_AutoDsn 性能测试
+func BenchmarkDBConfig_AutoDsn(b *testing.B) {
+	configs := []DBConfig{
+		{
+			DSN: "existing_dsn",
+		},
+		{
+			DriverType: "mysql",
+			Host:       "localhost",
+			Port:       3306,
+			User:       "root",
+			Password:   "password",
+			DBName:     "testdb",
+		},
+		{
+			DriverType: "postgres",
+			Host:       "localhost",
+			Port:       5432,
+			User:       "postgres",
+			Password:   "password",
+			DBName:     "testdb",
+		},
+		{
+			DriverType: "sqlite",
+			DBName:     ":memory:",
+		},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		config := configs[i%len(configs)]
+		_ = config.AutoDsn()
+	}
+}
+
+// BenchmarkDBConfig_AutoDsn_MySQL MySQL DSN 生成性能测试
+func BenchmarkDBConfig_AutoDsn_MySQL(b *testing.B) {
+	config := DBConfig{
+		DriverType: "mysql",
+		Host:       "localhost",
+		Port:       3306,
+		User:       "root",
+		Password:   "password",
+		DBName:     "testdb",
+		Charset:    "utf8mb4",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = config.AutoDsn()
+	}
+}

@@ -1,23 +1,64 @@
+# 数据库配置示例
+# 支持两种配置方式：
+# 1. 直接使用 dsn 字段提供连接字符串
+# 2. 使用 driver_type、host、port 等字段自动生成 dsn
+
 public:
   common:
-    name: "common"
-    dsn: ""
-    driver_type: ""
-    max_idle_conns: 0
-    max_open_conns: 0
-    max_lifetime: 0
+    name: "公共数据库"
+    # 方式1：直接提供 DSN
+    dsn: "user:password@tcp(127.0.0.1:3306)/common?charset=utf8mb4&parseTime=True&loc=Local"
+    driver_type: ""  # 使用 dsn 时可以为空
+    max_idle_conns: 10
+    max_open_conns: 100
+    max_lifetime: "1h"
+
 business:
   test_data_1:
-    name: "test_data_1"
-    dsn: ""
-    driver_type: ""
-    max_idle_conns: 0
-    max_open_conns: 0
-    max_lifetime: 0
+    name: "测试数据库1"
+    # 方式2：使用字段自动生成 DSN
+    dsn: ""  # 留空，使用自动生成
+    driver_type: "mysql"
+    host: "127.0.0.1"
+    port: 3306
+    user: "user"
+    password: "password"
+    db_name: "test_data_1"
+    charset: "utf8mb4"  # 可选，默认 utf8mb4
+    max_idle_conns: 5
+    max_open_conns: 50
+    max_lifetime: "30m"
+  
   test_data_2:
-    name: "test_data_2"
+    name: "测试数据库2"
+    # PostgreSQL 配置示例
     dsn: ""
-    driver_type: ""
-    max_idle_conns: 0
-    max_open_conns: 0
-    max_lifetime: 0
+    driver_type: "postgres"
+    host: "127.0.0.1"
+    port: 5432
+    user: "postgres"
+    password: "password"
+    db_name: "test_data_2"
+    max_idle_conns: 5
+    max_open_conns: 50
+    max_lifetime: "30m"
+
+# SQLite 配置示例
+sqlite:
+  memory_db:
+    name: "内存数据库"
+    dsn: ""
+    driver_type: "sqlite"
+    db_name: ":memory:"  # 内存数据库
+    max_idle_conns: 1
+    max_open_conns: 1
+    max_lifetime: "10m"
+  
+  file_db:
+    name: "文件数据库"
+    dsn: ""
+    driver_type: "sqlite"
+    db_name: "./data/app.db"  # 文件路径
+    max_idle_conns: 5
+    max_open_conns: 10
+    max_lifetime: "1h"

@@ -178,8 +178,15 @@ func main() {
 | 字段              | 类型             | 说明                                  |
 | ----------------- | ---------------- | ------------------------------------- |
 | `Name`            | `string`         | 数据库描述名称（可选，用于日志记录）  |
-| `DSN`             | `string`         | 数据源名称（连接字符串）              |
-| `Dialector`       | `gorm.Dialector` | GORM 方言驱动（**必需**）             |
+| `DSN`             | `string`         | 数据源名称（连接字符串，可选）        |
+| `DriverType`      | `string`         | 驱动类型（如 mysql, postgres 等）    |
+| `Host`            | `string`         | 数据库主机地址                        |
+| `Port`            | `int`            | 数据库端口                            |
+| `User`            | `string`         | 数据库用户名                          |
+| `Password`        | `string`         | 数据库密码                            |
+| `DBName`          | `string`         | 数据库名称                            |
+| `Charset`         | `string`         | 字符集（默认 utf8mb4）                |
+| `Dialector`       | `gorm.Dialector` | GORM 方言驱动（**必需**，或使用自动生成） |
 | `MaxIdleConns`    | `int`            | 最大空闲连接数                        |
 | `MaxOpenConns`    | `int`            | 最大打开连接数                        |
 | `ConnMaxLifetime` | `time.Duration`  | 连接最大存活时间                      |
@@ -307,6 +314,78 @@ func main() {
     fmt.Println("用户已删除")
 }
 ```
+
+## 自动生成 DSN
+
+mgorm 支持根据配置字段自动生成 DSN，无需手动编写连接字符串。
+
+### 使用自动生成 DSN
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "time"
+
+    "github.com/qq1060656096/mgorm"
+    "gorm.io/driver/mysql"
+)
+
+func main() {
+    ctx := context.Background()
+    group := mgorm.New()
+
+    // 使用自动生成 DSN 配置 MySQL
+    config := mgorm.DBConfig{
+        Name:            "主数据库",
+        DriverType:      "mysql",
+        Host:            "127.0.0.1",
+        Port:            3306,
+        User:            "user",
+        Password:        "password",
+        DBName:          "testdb",
+        Charset:         "utf8mb4", // 可选，默认 utf8mb4
+        MaxIdleConns:    10,
+        MaxOpenConns:    100,
+        ConnMaxLifetime: time.Hour,
+    }
+
+    // 自动生成 DSN 并创建连接
+    _, err := group.Register(ctx, "main", config)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 获取数据库连接
+    db, err := group.Get(ctx, "main")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 使用数据库连接
+    var result []map[string]interface{}
+    db.Raw("SELECT 1").Scan(&result)
+
+    defer group.Close(ctx)
+}
+```
+
+### 支持的数据库类型
+
+| 数据库类型 | `DriverType` 值 | 生成的 DSN 格式示例 |
+| ---------- | --------------- | ------------------- |
+| MySQL      | `mysql`         | `user:password@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local` |
+| PostgreSQL | `postgres`      | `host=host port=port user=user password=password dbname=dbname sslmode=disable` |
+| SQLite     | `sqlite`        | `dbname`（直接使用文件路径） |
+| SQL Server | `sqlserver`     | `sqlserver://user:password@host:port?database=dbname` |
+
+### 优先级说明
+
+1. **优先使用 `Dialector`**：如果设置了 `Dialector` 字段，将忽略其他 DSN 相关配置
+2. **其次使用 `DSN`**：如果设置了 `DSN` 字段，将直接使用该值
+3. **最后自动生成**：如果以上两者都未设置，将根据 `DriverType` 等字段自动生成 DSN
 
 ## MySQL DSN 格式
 
