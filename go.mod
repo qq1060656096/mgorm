@@ -3,7 +3,7 @@ module github.com/qq1060656096/mgorm
 go 1.21
 
 require (
-	github.com/qq1060656096/bizutil v0.0.4
+	github.com/qq1060656096/bizutil v0.0.5
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
 )
