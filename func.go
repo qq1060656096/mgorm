@@ -1,6 +1,16 @@
 package mgorm
 
-import "context"
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
+	"gorm.io/gorm"
+)
 
 // RegisterToDB 使用当前 Group 中已有名称 fromName 的配置，
 // 将其注册为新的名称 toName，并写入指定数据库 toDBName。
@@ -13,6 +23,13 @@ func RegisterToDB(ctx context.Context, group Group, fromName, toName, toDBName s
 
 	cfg.Name = toName
 	cfg.DBName = toDBName
+	cfg.DSN = ""
+	cfg.DSN = cfg.AutoDsn()
+	dialector, err := CreateDialector(cfg.DriverType, cfg.DSN)
+	if err != nil {
+		return false, err
+	}
+	cfg.Dialector = dialector
 
 	return group.Register(ctx, toName, cfg)
 }
@@ -45,5 +62,23 @@ func MustRegisterToDB(ctx context.Context, group Group, fromName, toName, toDBNa
 func BatchMustRegisterToDB(ctx context.Context, group Group, fromName string, toNameDBMap map[string]string) {
 	for toName, toDBName := range toNameDBMap {
 		MustRegisterToDB(ctx, group, fromName, toName, toDBName)
+	}
+}
+
+// ErrUnknownDriverType 当指定了不支持的数据库驱动类型时返回此错误。
+var ErrUnknownDriverType = errors.New("mgorm: unknown driver type")
+
+func CreateDialector(driverType, dsn string) (gorm.Dialector, error) {
+	switch driverType {
+	case "mysql":
+		return mysql.Open(dsn), nil
+	case "postgres":
+		return postgres.Open(dsn), nil
+	case "sqlite":
+		return sqlite.Open(dsn), nil
+	case "sqlserver":
+		return sqlserver.Open(dsn), nil
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnknownDriverType, driverType)
 	}
 }
